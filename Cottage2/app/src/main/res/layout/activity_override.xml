@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".OverrideActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <TextView
+            android:id="@+id/textView5"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/default_gap"
+            android:text="Override Timeout:"
+            android:textAlignment="center"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/idEditOverrideTimeout"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ems="3"
+                android:inputType="number" />
+
+            <TextView
+                android:id="@+id/textView7"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Minutes"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/textView3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/default_gap"
+            android:text="Override Mode:"
+            android:textAlignment="center"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <RadioGroup
+            android:id="@+id/idRadioGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="#3F51B5">
+
+            <RadioButton
+                android:id="@+id/idButtonOverrideOff"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/default_gap"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:text="Off"
+                android:textSize="16sp" />
+
+            <RadioButton
+                android:id="@+id/idButtonOverrideGeo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/default_gap"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:text="Geothermal"
+                android:textSize="16sp" />
+
+            <RadioButton
+                android:id="@+id/idButtonOverrideGeoElectric"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/default_gap"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:text="Geothermal + Electric"
+                android:textSize="16sp" />
+
+            <RadioButton
+                android:id="@+id/idButtonOverrideOil"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/default_gap"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:text="Electric + Oil"
+                android:textSize="16sp" />
+
+            <RadioButton
+                android:id="@+id/idButtonOverrideElectric"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/default_gap"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:text="Electric"
+                android:textSize="16sp" />
+
+            <RadioButton
+                android:id="@+id/idButtonAutomatic"
+                android:layout_width="163dp"
+                android:layout_height="wrap_content"
+                android:layout_margin="@dimen/default_gap"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:text="Automatic"
+                android:textSize="16sp" />
+        </RadioGroup>
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
