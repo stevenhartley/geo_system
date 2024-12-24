@@ -10,7 +10,7 @@ In order for this application to work you will need realtime firebase account an
 The entire program can be found in cottage.py, any of the imports that are not on your pi will need to be installed using `pip install`.  I setup the python script to be launched automatically using `pm2` command. 
 
 
-Take what you like and enjoy, it was a lot of fun writing this, homefully someone else will find it useful.
+Take what you like and enjoy, it was a lot of fun writing this, hopefully someone else will find it useful.
 
 _Steven._
 
