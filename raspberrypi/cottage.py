@@ -77,7 +77,7 @@ oil_ctrl_out = 16	# Oil system control pin (No longer used)
 pwr_ctrl_out = 12	# 3.3V power control pin for the 1-wire thermostats
 electric_ctrl_out = 19  # 9kW Hydronic heating system control pin
 
-
+zone_count = 4 # Used to tell when to turn on the electric system
 
 # Zone Class contains a name, address, and value
 class Zone:
@@ -164,10 +164,9 @@ def Reset1Wire():
     log.error(msg)
     UploadMsg(msg)
     GPIO.output(pwr_ctrl_out,0)
-    time.sleep(5)
+    time.sleep(10)
     GPIO.output(pwr_ctrl_out,1)
-    time.sleep(20)
-
+    time.sleep(5)
 
 
 ######################################################################
@@ -351,22 +350,57 @@ def SendMessage(msg):
 ######################################################################
 def MainLoop():
     global currentMode
+    failure = False
     try:
         geo_out = round(ReadTemperature('/sys/bus/w1/devices/28-3c2df648c6be'),1)
-        geo_in = round(ReadTemperature('/sys/bus/w1/devices/28-3c2df648f4f6'),1)
-        outside = round(ReadTemperature('/sys/bus/w1/devices/28-3cc3f6486763'),1)
-        heating = round(ReadTemperature('/sys/bus/w1/devices/28-3c18f648ac75'),1)
-        electric = round(ReadTemperature('/sys/bus/w1/devices/28-3c70f6498884'),1)
-        return_temp = round(ReadTemperature('/sys/bus/w1/devices/28-3c75f6496451'),1)
-        geo_p_out = round(FetchPressure(2,100),1)
-        main_pressure = round(FetchPressure(1,200),1)
-        geo_p_in = round(FetchPressure(0,200),1)
-        geo_p_heating = 0 #round(FetchPressure(1),1)
-        ReadZones()
     except Exception as e:
+        geo_out = 0
         log.warning(e)
+        failure = True
+
+    try:
+        geo_in = round(ReadTemperature('/sys/bus/w1/devices/28-3c2df648f4f6'),1)
+    except Exception as e:
+        geo_in = 0
+        log.warning(e)
+        failure = True
+
+    try:
+        outside = round(ReadTemperature('/sys/bus/w1/devices/28-3cc3f6486763'),1)
+    except Exception as e:
+        outside = -99
+        log.warning(e)
+        failure = True
+
+    try:
+        heating = round(ReadTemperature('/sys/bus/w1/devices/28-3c18f648ac75'),1)
+    except Exception as e:
+        heating = 0
+        log.warning(e)
+        failure = True
+
+    try:
+        electric = round(ReadTemperature('/sys/bus/w1/devices/28-3c70f6498884'),1)
+    except Exception as e:
+        electric = 0
+        log.warning(e)
+        failure = True
+
+    try:
+        return_temp = round(ReadTemperature('/sys/bus/w1/devices/28-3c75f6496451'),1)
+    except Exception as e:
+        return_temp = 0
+        log.warning(e)
+        failure = True
+
+    geo_p_out = round(FetchPressure(2,100),1)
+    main_pressure = 0 #round(FetchPressure(1,200),1)
+    geo_p_in = 0 #round(FetchPressure(0,200),1)
+    geo_p_heating = 0 #round(FetchPressure(1),1)
+    ReadZones()
+
+    if (failure):
         Reset1Wire()
-        return -1
 
     # Fill in te zone info
     zone_values = []
@@ -384,21 +418,30 @@ def MainLoop():
     pressures = [ geo_p_out, geo_p_in, main_pressure, geo_p_heating]
     system['p'] = pressures
 
-    # Switch to GEO_ELECTRIC if it is colder than -25 outside
-    if (outside < -25):
-        SetSystemMode(Mode.GEO_ELECTRIC, False)
+    # Set the number of zones that have to be on to enable electric supliment heating
+    if (outside < -20):
+    	zone_count = 2
+    elif (outside < -15):
+    	zone_count = 3
+    elif (outside < -10):
+    	zone_count = 4
+    elif (outside < -5):
+    	zone_count = 5
+    else :
+    	zone_count = 6
 
-    # Switch to electric if pressure has gone to high, 
-    # or the temperature of the geothermal water is too cold. 
+
+    # Switch to electric if pressure has gone to high,
+    # or the temperature of the geothermal water is too cold.
     # When the pressure is too high we consider that a critical issue and we switch from
-    # geothermal to electric right away. 
+    # geothermal to electric right away.
     # If the electric system is running and there are multiple zones on and the temperature
     # is still to cold, we turn on Oil and electric (last resort)
-    elif (geo_p_out > 50.0 or geo_out < -3 or geo_in < 1):
+    if (geo_p_out > 45.0 or geo_out < -3 or geo_in < -1):
         SetSystemMode(Mode.ELECTRIC, True)
 
-    # We have too many zones on so we need to supliment with electric
-    elif (num_on_zones > 4):
+    # Number of zones on is greater than the zone count, we supliment with electric
+    elif (num_on_zones >= zone_count):
         SetSystemMode(Mode.GEO_ELECTRIC, False)
 
     # Everything seems to be ok and we can stay in geothermal mode
@@ -451,7 +494,5 @@ InitFirebase()
 
 # The main loop!
 while True:
-    if (MainLoop() == 0):
-        time.sleep(10)
-    else:
-        time.sleep(5)
+    MainLoop()
+    time.sleep(10)
