@@ -51,6 +51,46 @@ from firebase_admin import db
 #from firebase_admin import messaging
 from datetime import datetime
 
+# Stuff to send an email
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
+email_password = "EMAIL PASSWORD HERE"
+email_user = "SENDERS EMAIL ADDRESS HERE"
+email_send = "YOUR EMAIL ADDRESS HERE"
+
+######################################################################
+# Get Current Time As String
+######################################################################
+def GetCurrentTime():
+    return datetime.now().strftime("%y/%m/%d %H:%M:%S")
+
+
+
+##################################################################
+# Send an Email.
+#
+# This function will send an email to me when the alarm goes off
+# meaning that the pressure is too high and we need to switch to
+# Electric only mode. Also send an email when the ALARM is off
+##################################################################
+def SendEmail(subject,body):
+    msg = MIMEMultipart()
+    msg["From"] = email_user
+    msg["To"] = email_send
+    msg["Subject"] = datetime.now().strftime("%H:%M:%S") + ":" + subject
+    msg.attach(MIMEText(body,"plain"))
+
+    text = msg.as_string()
+    server = smtplib.SMTP("smtp.gmail.com",587)
+    server.starttls()
+    server.login(email_user,email_password)
+
+    server.sendmail(email_user,email_send,text)
+    server.quit()
+
 
 
 ##################################################################
@@ -64,7 +104,8 @@ def FetchPressure(pin,max):
     chan = AnalogIn(ads, pin)
     result = max * ((chan.voltage - 0.5) / 4.0)
     return result
-    
+
+
 
 #GPIO Basic initialization
 GPIO.setmode(GPIO.BCM)
@@ -77,7 +118,6 @@ oil_ctrl_out = 16	# Oil system control pin (No longer used)
 pwr_ctrl_out = 12	# 3.3V power control pin for the 1-wire thermostats
 electric_ctrl_out = 19  # 9kW Hydronic heating system control pin
 
-zone_count = 4 # Used to tell when to turn on the electric system
 
 # Zone Class contains a name, address, and value
 class Zone:
@@ -132,6 +172,7 @@ def GetOneWireTempValue(var):
     return lines
 
 
+
 ##################################################################
 # Fetch Current Temperature from 1-wire Device.
 #
@@ -153,6 +194,7 @@ def ReadTemperature(addr):
         return temp_c
 
 
+
 ######################################################################
 # Reset 1-Wire Bus.
 #
@@ -167,6 +209,7 @@ def Reset1Wire():
     time.sleep(10)
     GPIO.output(pwr_ctrl_out,1)
     time.sleep(5)
+
 
 
 ######################################################################
@@ -207,8 +250,7 @@ def SetSystemMode(mode, force):
 
     # System has settled and we can safely switch to a new mode
     switchTime = datetime.now() + timedelta(minutes=5)
-    currentMode = mode
-    system['m'] = currentMode.value
+    system['m'] = mode.value
 
     #  Enable Oil (set to 1) when mode is ELECTRIC_OIL
     GPIO.output(oil_ctrl_out, 0 if (mode == Mode.ELECTRIC_OIL) else 1)
@@ -218,12 +260,17 @@ def SetSystemMode(mode, force):
 
     # Enable Electric Boiler (set to 0) when mode uses Electric
     GPIO.output(electric_ctrl_out, 0 if (mode == Mode.ELECTRIC or mode == Mode.GEO_ELECTRIC or mode == Mode.ELECTRIC_OIL) else 1)
-    msg = "Switching to:" + currentMode.name
+    msg = "Switching to " + mode.name
     log.info(msg)
     UploadMsg(msg)
     UploadMsg(json.dumps(system))
 
+    # send an email if we switched to/FROM Electric 
+    if (mode == Mode.ELECTRIC or currentMode == Mode.ELECTRIC):
+        SendEmail(msg,json.dumps(system))
 
+    # Set the current mode before we exit
+    currentMode = mode
 
 ######################################################################
 # Read Heating Zones.
@@ -301,15 +348,8 @@ def UploadData(where, data):
 def UploadMsg(msg):
     try:
         ref = db.reference("/cottage/geo/logs")
-        log = datetime.now().strftime("%y/%m/%d %H:%M:%S ") + msg
+        log = GetCurrentTime() + msg
         ref.push(log)
-#        message = messaging.Message(
-#            data={ msg },
-#        token=registration_token,
-#        )
-#        response = messaging.send(message)
-        # Response is a message ID string.
-#        print('Successfully sent message:', response)
     except Exception as e:
         print(e)
 
@@ -418,33 +458,19 @@ def MainLoop():
     pressures = [ geo_p_out, geo_p_in, main_pressure, geo_p_heating]
     system['p'] = pressures
 
-    # Set the number of zones that have to be on to enable electric supliment heating
-    if (outside < -20):
-    	zone_count = 2
-    elif (outside < -15):
-    	zone_count = 3
-    elif (outside < -10):
-    	zone_count = 4
-    elif (outside < -5):
-    	zone_count = 5
-    else :
-    	zone_count = 6
 
-
-    # Switch to electric if pressure has gone to high,
-    # or the temperature of the geothermal water is too cold.
-    # When the pressure is too high we consider that a critical issue and we switch from
-    # geothermal to electric right away.
-    # If the electric system is running and there are multiple zones on and the temperature
-    # is still to cold, we turn on Oil and electric (last resort)
+    # Switch to electric if pressure has gone to high or the temperature of the geothermal
+    # water is too cold. These failures are considered critial so we switch right away
+    # to protect the geothermal system.
     if (geo_p_out > 45.0 or geo_out < -3 or geo_in < -1):
         SetSystemMode(Mode.ELECTRIC, True)
 
-    # Number of zones on is greater than the zone count, we supliment with electric
-    elif (num_on_zones >= zone_count):
+    # If it is colder than -15C or the number of zones on is greater than 
+    # zone count, we supliment with electric
+    elif (outside < -15 or num_on_zones > 4):
         SetSystemMode(Mode.GEO_ELECTRIC, False)
 
-    # Everything seems to be ok and we can stay in geothermal mode
+    # Everything seems to be ok and we can stay in geothermal only mode
     else :
         SetSystemMode(Mode.GEOTHERMAL, False)
 
