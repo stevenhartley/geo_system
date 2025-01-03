@@ -12,5 +12,7 @@ The entire program can be found in cottage.py, any of the imports that are not o
 
 Take what you like and enjoy, it was a lot of fun writing this, hopefully someone else will find it useful.
 
+![Cottage System](20250103_102810.jpg)
+
 _Steven._
 
