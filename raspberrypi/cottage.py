@@ -57,9 +57,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
-email_password = "EMAIL PASSWORD HERE"
-email_user = "SENDERS EMAIL ADDRESS HERE"
-email_send = "YOUR EMAIL ADDRESS HERE"
+import logins
 
 ######################################################################
 # Get Current Time As String
