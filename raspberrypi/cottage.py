@@ -103,7 +103,7 @@ def SendEmail(subject,body):
 def FetchPressure(pin,max):
     chan = AnalogIn(ads, pin)
     result = max * ((chan.voltage - 0.5) / 4.0)
-    return result
+    return round(result,1)
 
 
 
@@ -180,18 +180,23 @@ def GetOneWireTempValue(var):
 # Returns the read temperature.
 ##################################################################
 def ReadTemperature(addr):
-    lines = GetOneWireTempValue(addr)
-    # Analyze if the last 3 characters are 'YES'.
-    while lines[0].strip()[-3:] != 'YES':
-        time.sleep(0.2)
+    try:
         lines = GetOneWireTempValue(addr)
-    # Find the index of 't=' in a string.
-    equals_pos = lines[1].find('t=')
-    if equals_pos != -1:
-        # Read the temperature .
-        temp_string = lines[1][equals_pos+2:]
-        temp_c = float(temp_string) / 1000.0
-        return temp_c
+        # Analyze if the last 3 characters are 'YES'.
+        while lines[0].strip()[-3:] != 'YES':
+            time.sleep(0.2)
+            lines = GetOneWireTempValue(addr)
+        # Find the index of 't=' in a string.
+        equals_pos = lines[1].find('t=')
+        if equals_pos != -1:
+            # Read the temperature .
+            temp_string = lines[1][equals_pos+2:]
+            temp_c = float(temp_string) / 1000.0
+            return round(temp_c,1)
+    except Exception as e:
+        log.warning(e)
+        Reset1Wire()
+        return 0
 
 
 
@@ -390,57 +395,18 @@ def SendMessage(msg):
 ######################################################################
 def MainLoop():
     global currentMode
-    failure = False
-    try:
-        geo_out = round(ReadTemperature('/sys/bus/w1/devices/28-3c2df648c6be'),1)
-    except Exception as e:
-        geo_out = 0
-        log.warning(e)
-        failure = True
+    geo_out = ReadTemperature('/sys/bus/w1/devices/28-3c2df648c6be')
+    geo_in =  ReadTemperature('/sys/bus/w1/devices/28-3c2df648f4f6')
+    outside = ReadTemperature('/sys/bus/w1/devices/28-3cc3f6486763')
+    heating = ReadTemperature('/sys/bus/w1/devices/28-3c18f648ac75')
+    electric = ReadTemperature('/sys/bus/w1/devices/28-3c70f6498884')
+    return_temp = ReadTemperature('/sys/bus/w1/devices/28-3c75f6496451')
 
-    try:
-        geo_in = round(ReadTemperature('/sys/bus/w1/devices/28-3c2df648f4f6'),1)
-    except Exception as e:
-        geo_in = 0
-        log.warning(e)
-        failure = True
-
-    try:
-        outside = round(ReadTemperature('/sys/bus/w1/devices/28-3cc3f6486763'),1)
-    except Exception as e:
-        outside = -99
-        log.warning(e)
-        failure = True
-
-    try:
-        heating = round(ReadTemperature('/sys/bus/w1/devices/28-3c18f648ac75'),1)
-    except Exception as e:
-        heating = 0
-        log.warning(e)
-        failure = True
-
-    try:
-        electric = round(ReadTemperature('/sys/bus/w1/devices/28-3c70f6498884'),1)
-    except Exception as e:
-        electric = 0
-        log.warning(e)
-        failure = True
-
-    try:
-        return_temp = round(ReadTemperature('/sys/bus/w1/devices/28-3c75f6496451'),1)
-    except Exception as e:
-        return_temp = 0
-        log.warning(e)
-        failure = True
-
-    geo_p_out = round(FetchPressure(2,100),1)
-    main_pressure = 0 #round(FetchPressure(1,200),1)
-    geo_p_in = 0 #round(FetchPressure(0,200),1)
-    geo_p_heating = 0 #round(FetchPressure(1),1)
+    geo_p_out = FetchPressure(2,100)
+    main_pressure = 0 #FetchPressure(1,200)
+    geo_p_in = 0 #FetchPressure(0,200)
+    geo_p_heating = 0 #FetchPressure(1)
     ReadZones()
-
-    if (failure):
-        Reset1Wire()
 
     # Fill in te zone info
     zone_values = []
@@ -465,9 +431,9 @@ def MainLoop():
     if (geo_p_out > 45.0 or geo_out < -3 or geo_in < -1):
         SetSystemMode(Mode.ELECTRIC, True)
 
-    # If it is colder than -15C or the number of zones on is greater than 
-    # zone count, we supliment with electric
-    elif (outside < -15 or num_on_zones > 4):
+    # If it is colder than -15C or the buffer tank temperature drops below 35C,
+    # we supliment with electric
+    elif (outside < -15 or heating < 35):
         SetSystemMode(Mode.GEO_ELECTRIC, False)
 
     # Everything seems to be ok and we can stay in geothermal only mode
@@ -475,7 +441,7 @@ def MainLoop():
         SetSystemMode(Mode.GEOTHERMAL, False)
 
     log.info("%s", json.dumps(system))
-    UploadData("geo", system);
+    UploadData("geo", system)
     return 0
 
 
