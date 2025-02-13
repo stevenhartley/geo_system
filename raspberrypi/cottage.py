@@ -431,9 +431,9 @@ def MainLoop():
     if (geo_p_out > 45.0 or geo_out < -3 or geo_in < -1):
         SetSystemMode(Mode.ELECTRIC, True)
 
-    # If it is colder than -15C or the buffer tank temperature drops below 35C,
+    # If it is colder than -17C or the buffer tank temperature drops below 35C,
     # we supliment with electric
-    elif (outside < -15 or heating < 35):
+    elif (outside < -17 or heating < 35):
         SetSystemMode(Mode.GEO_ELECTRIC, False)
 
     # Everything seems to be ok and we can stay in geothermal only mode
