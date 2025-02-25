@@ -186,14 +186,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="25dp"
                         android:clickable="false"
-                        android:text="Main Bath" />
+                        android:text="Luca BR" />
 
                     <RadioButton
                         android:id="@+id/radioButton3"
                         android:layout_width="wrap_content"
                         android:layout_height="25dp"
                         android:clickable="false"
-                        android:text="Lucas BR" />
+                        android:text="Main Bath" />
 
                     <RadioButton
                         android:id="@+id/radioButton4"
