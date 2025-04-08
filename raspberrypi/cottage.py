@@ -138,13 +138,13 @@ zones = [
 
 # Heating System modes
 class Mode(Enum):
-    OFF = 0
-    GEOTHERMAL = 1
-    GEO_ELECTRIC = 2
-    ELECTRIC_OIL = 3
-    AUTOMATIC = 4
-    ELECTRIC = 5
-    INVALID = -1
+    OFF = 0          # System is powered off
+    GEOTHERMAL = 1   # Geothermal heating only
+    GEO_ELECTRIC = 2 # Geothermal + 12kW Hydronic Boiler 
+    AC = 3           # Summer AC mode
+    AUTOMATIC = 4    # Automatic mode (default)
+    ELECTRIC = 5     # 12kW Hydronic Boiler only
+    INVALID = -1     # Invalid mode
 
 #Got to love global variables!
 currentMode = Mode.GEOTHERMAL
@@ -263,7 +263,7 @@ def SetSystemMode(mode, force):
     GPIO.output(geo_ctrl_out, 1 if (mode == Mode.GEOTHERMAL or mode == Mode.GEO_ELECTRIC) else 0)
 
     # Enable Electric Boiler (set to 0) when mode uses Electric
-    GPIO.output(electric_ctrl_out, 0 if (mode == Mode.ELECTRIC or mode == Mode.GEO_ELECTRIC or mode == Mode.ELECTRIC_OIL) else 1)
+    GPIO.output(electric_ctrl_out, 0 if (mode == Mode.ELECTRIC or mode == Mode.GEO_ELECTRIC) else 1)
     msg = "Switching to " + mode.name
     log.info(msg)
     UploadMsg(msg)
