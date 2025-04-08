@@ -92,7 +92,7 @@ public class OverrideActivity extends AppCompatActivity {
                         case GEO_ELECTRIC:
                             buttonGroup.check(R.id.idButtonOverrideGeoElectric);
                             break;
-                        case ELECTRIC_OIL:
+                        case AC:
                             buttonGroup.check(R.id.idButtonOverrideOil);
                             break;
                         case ELECTRIC:
@@ -144,7 +144,7 @@ public class OverrideActivity extends AppCompatActivity {
         oil.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                mode = Mode.ELECTRIC_OIL;
+                mode = Mode.AC;
                 setOverride();
             }
 

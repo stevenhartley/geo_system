@@ -19,7 +19,7 @@ public enum Mode {
     OFF(0, "OFF"),
     GEOTHERMAL(1, "GEOTHERMAL"),
     GEO_ELECTRIC(2, "GEO_ELECTRIC"),
-    ELECTRIC_OIL(3, "ELECTRIC_OIL"),
+    AC(3, "AC"),
     AUTOMATIC(4, "AUTOMATIC"),
 
     ELECTRIC(5, "ELECTRIC"),
