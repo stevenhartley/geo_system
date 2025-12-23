@@ -51,43 +51,15 @@ from firebase_admin import db
 #from firebase_admin import messaging
 from datetime import datetime
 
-# Stuff to send an email
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
-import logins
+# Send emergency email
+import send_email
+from send_email import SendEmail
 
 ######################################################################
 # Get Current Time As String
 ######################################################################
 def GetCurrentTime():
     return datetime.now().strftime("%y/%m/%d %H:%M:%S")
-
-
-
-##################################################################
-# Send an Email.
-#
-# This function will send an email to me when the alarm goes off
-# meaning that the pressure is too high and we need to switch to
-# Electric only mode. Also send an email when the ALARM is off
-##################################################################
-def SendEmail(subject,body):
-    msg = MIMEMultipart()
-    msg["From"] = email_user
-    msg["To"] = email_send
-    msg["Subject"] = datetime.now().strftime("%H:%M:%S") + ":" + subject
-    msg.attach(MIMEText(body,"plain"))
-
-    text = msg.as_string()
-    server = smtplib.SMTP("smtp.gmail.com",587)
-    server.starttls()
-    server.login(email_user,email_password)
-
-    server.sendmail(email_user,email_send,text)
-    server.quit()
 
 
 
@@ -269,9 +241,10 @@ def SetSystemMode(mode, force):
     UploadMsg(msg)
     UploadMsg(json.dumps(system))
 
-    # send an email if we switched to/FROM Electric 
+    # send an email if we switched to/FROM Electric
     if (mode == Mode.ELECTRIC or currentMode == Mode.ELECTRIC):
-        SendEmail(msg,json.dumps(system))
+        body = msg + "\n" + json.dumps(system)
+        SendEmail(body)
 
     # Set the current mode before we exit
     currentMode = mode
@@ -398,13 +371,14 @@ def MainLoop():
     outside = ReadTemperature('/sys/bus/w1/devices/28-3cc3f6486763')
     heating = ReadTemperature('/sys/bus/w1/devices/28-3c75f6496451')
     geo_out =  ReadTemperature('/sys/bus/w1/devices/28-3c2df648f4f6')
-    geo_in  = ReadTemperature('/sys/bus/w1/devices/28-3c2df648c6be')
+    geo_in  = round(ReadTemperature('/sys/bus/w1/devices/28-3c2df648c6be') - 2.0, 1)
     #return_temp = ReadTemperature('/sys/bus/w1/devices/28-3c18f648ac75')
 
     geo_p_out = FetchPressure(2,100)
-    main_pressure = 0 #FetchPressure(1,200)
-    geo_p_in = 0 #FetchPressure(0,200)
-    geo_p_heating = 0 #FetchPressure(1)
+    # The other pressures are not working so remove them
+    #main_pressure = 0 FetchPressure(1,200)
+    #geo_p_in = 0 FetchPressure(0,200)
+    #geo_p_heating = 0 FetchPressure(1)
     ReadZones()
 
     # Fill in te zone info
@@ -420,20 +394,20 @@ def MainLoop():
     temperatures = [geo_in, geo_out, heating, outside, electric, 0]
     system['t'] = temperatures
 
-    pressures = [ geo_p_out, geo_p_in, main_pressure, geo_p_heating]
+    pressures = [ geo_p_out`, geo_p_in, main_pressure, geo_p_heating`]
     system['p'] = pressures
 
 
     # Switch to electric if pressure has gone to high or the temperature of the geothermal
     # water is too cold. These failures are considered critial so we switch right away
     # to protect the geothermal system.
-    if (geo_p_out > 50.0 or geo_out < -6 or geo_in < -1):
+    if (geo_p_out > 50.0 or geo_p_out < 10.0 or geo_out < -7 or geo_in < -2):
         SetSystemMode(Mode.ELECTRIC, True)
 
-    # If it is colder than -17C or the buffer tank temperature drops below 35C,
+    # If it is colder than -17C and the buffer tank temperature drops below 32C,
     # we supliment with electric
-    elif (outside < -17 or (heating < 30 and outside < -10)):
-        SetSystemMode(Mode.GEO_ELECTRIC, False)
+#    elif (heating < 32 and outside < -17):
+#       SetSystemMode(Mode.GEO_ELECTRIC, False)
 
     # Everything seems to be ok and we can stay in geothermal only mode
     else :
