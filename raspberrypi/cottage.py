@@ -1,7 +1,7 @@
 # coding: utf-8
 '''
 ------------------------------------------------------------------------------
-SPDX-FileCopyrightText: 2023 Steven Hartley
+SPDX-FileCopyrightText: 2025 Steven Hartley
 
 See the NOTICE file(s) distributed with this work for additional
 information regarding copyright ownership.
@@ -55,6 +55,12 @@ from datetime import datetime
 import send_email
 from send_email import SendEmail
 
+# Imports for Neviweb Sinope thermostate access
+from logins import NEVIWEB_USERNAME, NEVIWEB_PASSWORD, NEVIWEB_GATEWAY_ID
+from Neviweb130Client import Neviweb130Client
+from NeviwebConst import ATTR_DRSTATUS, ATTR_ROOM_SETPOINT, ATTR_ROOM_TEMPERATURE
+
+
 ######################################################################
 # Get Current Time As String
 ######################################################################
@@ -91,21 +97,25 @@ electric_ctrl_out = 19  # 9kW Hydronic heating system control pin
 
 # Zone Class contains a name, address, and value
 class Zone:
-    def __init__(self, name, address, value):
+    def __init__(self, name, address, sinope_id, value, temp, setpoint, dractive):
         self.name = name
         self.address = address
+        self.sinope_id = sinope_id
         self.value = value
+        self.temp = temp
+        self.setpoint = setpoint
+        self.dractive = dractive
 
 # Cottage Heating Zones
 zones = [
-        Zone("Zone1", 17, 0),
-        Zone("Zone2", 18, 0),
-        Zone("Zone3", 24, 0),
-        Zone("Zone4", 25, 0),
-        Zone("Zone5", 5, 0),
-        Zone("Zone6", 23, 0),
-        Zone("Zone7", 22, 0),
-        Zone("Zone8", 27, 0)
+        Zone("Main BR", 17, 751150, 0, 0, 0, False),
+        Zone("Luca BR", 18, 751154, 0, 0, 0, False),
+        Zone("Main Bath", 24, 822162, 0, 0, 0, False),
+        Zone("Basement Bath", 25, 822147, 0, 0, 0, False),
+        Zone("Adamos BR", 5, 822159, 0, 0, 0, False),
+        Zone("Basement", 23, 652453, 0, 0, 0, False),
+        Zone("Garage", 22, 751134, 0, 0, 0, False),
+        Zone("Dining Room", 27, 652455, 0, 0, 0, False)
     ]
 
 # Heating System modes
@@ -259,6 +269,15 @@ def SetSystemMode(mode, force):
 ######################################################################
 def ReadZones():
     global zones
+    global client
+    
+    # Attributes to fetch and then parse. 
+    UPDATE_ATTRIBUTES = [
+        ATTR_DRSTATUS,
+        ATTR_ROOM_SETPOINT,
+        ATTR_ROOM_TEMPERATURE,
+    ]
+
     try:
         # Clear the current zone info
         for i in range(len(zones)):
@@ -273,8 +292,29 @@ def ReadZones():
                     break
                 time.sleep(0.002)
 
+            # Now read the Sinope thermostate info
+            device_data = client.get_device_attributes(str(zones[i].sinope_id), UPDATE_ATTRIBUTES)
+            zones[i].temp = device_data["roomTemperature"]["value"]
+            zones[i].setpoint = device_data["roomSetpoint"]
+            zones[i].dractive = device_data["drStatus"]["drActive"] == "on"
+        print("Zones:", zones) 
+
     except Exception as e:
         print("An error occured:",e)
+
+
+######################################################################
+# Initialize Neviweb Client
+#
+# Function to initialize the Neviweb client to read the Sinope thermostates
+######################################################################
+def InitNeviwebClient():
+    try:
+        client = Neviweb130Client(NEVIWEB_USERNAME, NEVIWEB_PASSWORD, NEVIWEB_GATEWAY_ID, None, None, True)
+        return client
+    except Exception as e:
+        print(e)
+        return None
 
 
 
@@ -383,18 +423,28 @@ def MainLoop():
 
     # Fill in te zone info
     zone_values = []
+    zone_temps = []
+    zone_setpoints = []
+    zone_dractive = []
+
     num_on_zones = 0
     for i in range(len(zones)):
         zone_values.append(zones[i].value)
+        zone_temps.append(zones[i].temp)
+        zone_setpoints.append(zones[i].setpoint)
+        zone_dractive.append(zones[i].dractive)
         if (zones[i].value):
             num_on_zones = num_on_zones +1
 
-    system['z'] = zone_values
+    system['z'] =  zone_values
+    system['zt'] = zone_temps
+    system['zsp'] = zone_setpoints
+    system['zdr'] = zone_dractive
 
     temperatures = [geo_in, geo_out, heating, outside, electric, 0]
     system['t'] = temperatures
 
-    pressures = [ geo_p_out`, geo_p_in, main_pressure, geo_p_heating`]
+    pressures = [ geo_p_out]#, geo_p_in, main_pressure, geo_p_heating]
     system['p'] = pressures
 
 
@@ -455,6 +505,9 @@ log.info("Start of Program")
 
 # Init the backend database
 InitFirebase()
+
+global client
+client = InitNeviwebClient()
 
 
 # The main loop!
